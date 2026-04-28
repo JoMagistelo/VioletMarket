@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VioletMarket - Gestión Premium</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+        body { font-family: 'Outfit', sans-serif; background-color: #f5f3ff; }
+        .bg-violet-gradient { background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%); }
+        .sidebar-active { background: #ede9fe; color: #7c3aed; border-radius: 16px; font-weight: 700; }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #ddd6fe; border-radius: 10px; }
+        .card-violet { background: white; border: 1px solid #ddd6fe; border-radius: 24px; }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <!-- SETUP SCREEN -->
+    <div id="db-setup" class="fixed inset-0 z-[100] bg-violet-950 flex items-center justify-center p-4">
+        <div id="setup-loader" class="hidden absolute inset-0 bg-violet-950/80 z-10 flex items-center justify-center">
+            <div class="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-violet-400"></div>
+        </div>
+        
+        <div class="max-w-md w-full bg-white rounded-[2.5rem] p-10 shadow-2xl text-center border-4 border-violet-200">
+            <div class="w-20 h-20 bg-violet-600 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg rotate-3">
+                <i data-lucide="shopping-cart" class="text-white w-10 h-10"></i>
+            </div>
+            <h1 class="text-3xl font-extrabold text-violet-950 tracking-tight">VioletMarket 💜</h1>
+            <p class="text-slate-500 mt-2 mb-8 text-sm font-medium">Tu negocio, en tus manos y en la nube.</p>
+            
+            <div class="space-y-4">
+                <button onclick="initCloudSession()" class="w-full py-4 bg-violet-600 text-white rounded-2xl font-bold hover:bg-violet-700 transition-all flex items-center justify-center gap-3 shadow-xl shadow-violet-200">
+                    <i data-lucide="cloud" class="w-5 h-5"></i> Iniciar Sesión Nube ☁️
+                </button>
+                
+                <div class="flex items-center gap-4 py-2">
+                    <div class="h-px bg-violet-100 flex-1"></div>
+                    <span class="text-[10px] text-violet-300 font-bold uppercase tracking-widest">O LOCALMENTE</span>
+                    <div class="h-px bg-violet-100 flex-1"></div>
+                </div>
+
+                <input type="file" id="file-input" accept=".xlsx" class="hidden">
+                <button onclick="document.getElementById('file-input').click()" class="w-full py-3 border-2 border-violet-100 text-violet-600 rounded-2xl font-bold hover:bg-violet-50 transition-all flex items-center justify-center gap-3 italic">
+                    <i data-lucide="file-spreadsheet" class="w-5 h-5"></i> Cargar Inventario Excel 📂
+                </button>
+                <button onclick="skipSetup()" class="w-full py-2 text-violet-400 font-bold hover:text-violet-600 text-sm transition-colors">
+                    Continuar sin archivo ⚡
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR -->
+    <aside class="w-72 bg-white border-r border-violet-100 p-6 flex flex-col gap-8 shrink-0">
+        <div class="flex items-center gap-3 px-2">
+            <div class="p-2.5 bg-violet-600 rounded-2xl shadow-lg rotate-3"><i data-lucide="store" class="text-white w-6 h-6"></i></div>
+            <div>
+                <h2 class="text-xl font-extrabold text-violet-950 leading-none">VioletMarket</h2>
+                <span class="text-[10px] font-bold text-violet-400 uppercase tracking-widest">Premium POS</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 space-y-2 overflow-y-auto custom-scroll pr-2">
+            <button onclick="showSection('pos')" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-violet-50 transition-all sidebar-active" data-section="pos">
+                <i data-lucide="layout-grid" class="w-5 h-5"></i> <span class="text-sm">Punto de Venta</span> 🏷️
+            </button>
+            <button onclick="showSection('inventory')" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-violet-50 transition-all" data-section="inventory">
+                <i data-lucide="box" class="w-5 h-5"></i> <span class="text-sm">Inventario</span> 📦
+            </button>
+            <button onclick="showSection('analytics')" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-violet-50 transition-all" data-section="analytics">
+                <i data-lucide="pie-chart" class="w-5 h-5"></i> <span class="text-sm">Analíticas</span> 📈
+            </button>
+            <button onclick="showSection('expenses')" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-violet-50 transition-all" data-section="expenses">
+                <i data-lucide="wallet" class="w-5 h-5"></i> <span class="text-sm">Gastos</span> 💸
+            </button>
+            <button onclick="showSection('history')" class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-slate-500 hover:bg-violet-50 transition-all" data-section="history">
+                <i data-lucide="history" class="w-5 h-5"></i> <span class="text-sm">Historial</span> 📜
+            </button>
+        </nav>
+
+        <div class="space-y-4 pt-6 border-t border-violet-50">
+            <button onclick="exportCurrentData()" class="w-full py-4 bg-violet-600 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-violet-700 transition-all shadow-lg shadow-violet-100">
+                <i data-lucide="download" class="w-4 h-4"></i> EXPORTAR CIERRE DEL DÍA 🏁
+            </button>
+            <div class="bg-violet-50 p-4 rounded-2xl border border-violet-100">
+                <div class="flex items-center gap-2 mb-1">
+                    <div id="status-dot" class="w-2 h-2 rounded-full animate-pulse"></div>
+                    <span id="storage-status" class="text-[10px] font-bold text-violet-700 uppercase tracking-tight">Cargando...</span>
+                </div>
+                <p id="user-info" class="text-[9px] text-violet-400 truncate">Sincronizando sesión</p>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 flex flex-col min-w-0 bg-slate-50/50">
+        <header class="h-20 bg-white border-b border-violet-100 px-10 flex items-center justify-between">
+            <div id="section-title" class="text-xl font-bold text-violet-950 flex items-center gap-3">
+                <i data-lucide="zap" class="text-violet-500"></i> Caja
+            </div>
+            <div class="flex items-center gap-6">
+                <div id="clock" class="text-sm font-bold text-slate-400 bg-slate-50 px-4 py-2 rounded-full">00:00:00</div>
+                <div class="h-10 w-px bg-violet-100"></div>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center text-violet-600 font-bold text-xs">V</div>
+                    <span class="text-sm font-bold text-slate-700">Admin</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex-1 overflow-hidden p-8">
+            
+            <!-- SECTION POS -->
+            <div id="section-pos" class="h-full flex gap-8">
+                <div class="flex-1 flex flex-col min-w-0 gap-6">
+                    <div class="flex gap-4">
+                        <div class="flex-1 relative">
+                            <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 text-violet-300 w-5 h-5"></i>
+                            <input type="text" id="pos-search" oninput="renderPOS()" placeholder="Buscar por nombre o código..." class="w-full pl-14 pr-6 py-4 bg-white border border-violet-100 rounded-3xl focus:ring-4 focus:ring-violet-100 outline-none transition-all shadow-sm">
+                        </div>
+                        <button onclick="startScanner()" class="px-6 bg-white border border-violet-100 text-violet-600 rounded-3xl hover:bg-violet-50 shadow-sm">
+                            <i data-lucide="maximize" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+
+                    <div id="scanner-view" class="hidden relative rounded-[2rem] overflow-hidden bg-black aspect-video mb-4 border-4 border-violet-500">
+                        <div id="reader"></div>
+                        <button onclick="stopScanner()" class="absolute top-6 right-6 bg-white/30 backdrop-blur-md p-3 rounded-full text-white z-20"><i data-lucide="x" class="w-6 h-6"></i></button>
+                    </div>
+
+                    <div id="pos-grid" class="flex-1 grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 overflow-y-auto pr-4 custom-scroll"></div>
+                </div>
+
+                <!-- CART -->
+                <div class="w-96 bg-white rounded-[2.5rem] border border-violet-100 flex flex-col shadow-xl shadow-violet-100/20">
+                    <div class="p-6 border-b border-violet-50 flex justify-between items-center">
+                        <h3 class="font-extrabold text-violet-950">Carrito Actual 🛒</h3>
+                        <button onclick="clearCart()" class="text-xs font-bold text-red-400 bg-red-50 px-3 py-1.5 rounded-full hover:bg-red-500 hover:text-white transition-all">VACIAR</button>
+                    </div>
+                    <div id="cart-list" class="flex-1 overflow-y-auto p-6 space-y-4 custom-scroll"></div>
+                    <div class="p-8 bg-violet-50/50 rounded-b-[2.5rem] border-t border-violet-100 space-y-5">
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-slate-400 text-sm font-bold">
+                                <span>Subtotal</span>
+                                <span id="cart-subtotal">$0.00</span>
+                            </div>
+                            <div class="flex justify-between text-violet-950 text-2xl font-black">
+                                <span>TOTAL</span>
+                                <span id="cart-total">$0.00</span>
+                            </div>
+                        </div>
+                        <button onclick="checkout()" class="w-full py-5 bg-violet-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-violet-700 transition-all shadow-xl shadow-violet-200 active:scale-95">
+                            COMPLETAR VENTA 💰
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION INVENTORY -->
+            <div id="section-inventory" class="hidden h-full flex flex-col gap-6">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl font-black text-violet-950">Inventario Pro 📦</h2>
+                        <p class="text-slate-400 font-medium">Gestiona stock, costos y alertas.</p>
+                    </div>
+                    <button onclick="openProductModal()" class="bg-violet-600 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center gap-3 shadow-lg shadow-violet-200 hover:bg-violet-700 transition-all">
+                        <i data-lucide="plus-circle" class="w-5 h-5"></i> Agregar Producto
+                    </button>
+                </div>
+                <div class="bg-white rounded-[2rem] border border-violet-100 overflow-hidden flex-1 flex flex-col shadow-sm">
+                    <div class="overflow-y-auto custom-scroll flex-1">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-violet-50/50 border-b border-violet-100 sticky top-0 z-10 text-[10px] uppercase text-violet-400 font-black tracking-widest">
+                                <tr>
+                                    <th class="p-5">Información</th>
+                                    <th class="p-5">Costo / Venta</th>
+                                    <th class="p-5">Stock Estado</th>
+                                    <th class="p-5">Ganancia/Unid</th>
+                                    <th class="p-5 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-table" class="divide-y divide-violet-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION ANALYTICS -->
+            <div id="section-analytics" class="hidden h-full overflow-y-auto custom-scroll pr-2">
+                <h2 class="text-3xl font-black text-violet-950 mb-8">Análisis VioletMarket 📉</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="card-violet p-6">
+                        <p class="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Ventas Brutas (Total)</p>
+                        <h3 id="stat-total-sales" class="text-3xl font-black text-violet-950">$0.00</h3>
+                        <p class="text-[10px] text-green-500 font-bold mt-2">Total acumulado</p>
+                    </div>
+                    <div class="card-violet p-6">
+                        <p class="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Ganancia Neta 💎</p>
+                        <h3 id="stat-net-profit" class="text-3xl font-black text-emerald-500">$0.00</h3>
+                        <p class="text-[10px] text-slate-400 font-medium mt-2">Tras costos y gastos</p>
+                    </div>
+                    <div class="card-violet p-6">
+                        <p class="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Inversión en Stock</p>
+                        <h3 id="stat-stock-val" class="text-3xl font-black text-amber-500">$0.00</h3>
+                        <p class="text-[10px] text-slate-400 font-medium mt-2">Valor de compra activo</p>
+                    </div>
+                    <div class="card-violet p-6">
+                        <p class="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Gastos Operativos</p>
+                        <h3 id="stat-total-expenses" class="text-3xl font-black text-rose-500">$0.00</h3>
+                        <p class="text-[10px] text-slate-400 font-medium mt-2">Luz, renta, otros</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="card-violet p-8">
+                        <h4 class="font-bold text-violet-950 mb-6">Tendencia de Ventas (7 días) 📊</h4>
+                        <canvas id="salesChart" height="200"></canvas>
+                    </div>
+                    <div class="card-violet p-8">
+                        <h4 class="font-bold text-violet-950 mb-6">Top 5 Productos más Vendidos 🏆</h4>
+                        <div id="top-products-list" class="space-y-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION EXPENSES -->
+            <div id="section-expenses" class="hidden h-full flex flex-col gap-6">
+                <div class="flex justify-between items-end">
+                    <div>
+                        <h2 class="text-3xl font-black text-violet-950">Gastos Operativos 💸</h2>
+                        <p class="text-slate-400 font-medium">Registra tus costos variables aquí.</p>
+                    </div>
+                    <button onclick="openExpenseModal()" class="bg-rose-500 text-white px-8 py-3.5 rounded-2xl font-bold flex items-center gap-3 shadow-lg shadow-rose-100 hover:bg-rose-600 transition-all">
+                        <i data-lucide="minus-circle" class="w-5 h-5"></i> Registrar Gasto
+                    </button>
+                </div>
+                <div class="bg-white rounded-[2rem] border border-violet-100 overflow-hidden flex-1 flex flex-col shadow-sm">
+                    <div class="overflow-y-auto custom-scroll flex-1">
+                        <table class="w-full text-left text-sm">
+                            <thead class="bg-slate-50 border-b border-violet-100 text-[10px] uppercase text-slate-400 font-black p-5">
+                                <tr>
+                                    <th class="p-5">Fecha / Hora</th>
+                                    <th class="p-5">Concepto / Categoría</th>
+                                    <th class="p-5 text-right">Monto</th>
+                                    <th class="p-5"></th>
+                                </tr>
+                            </thead>
+                            <tbody id="expenses-table" class="divide-y divide-violet-50"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION HISTORY -->
+            <div id="section-history" class="hidden h-full flex flex-col gap-4">
+                <h2 class="text-3xl font-black text-violet-950 mb-4">Bitácora de Ventas 📜</h2>
+                <div id="sales-log" class="space-y-3 overflow-y-auto pr-2 custom-scroll"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL PRODUCTO -->
+    <div id="modal-product" class="hidden fixed inset-0 z-[110] bg-violet-950/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] w-full max-w-lg shadow-2xl overflow-hidden border-8 border-violet-100">
+            <div class="p-8 border-b border-violet-50 flex justify-between items-center bg-violet-50/30">
+                <h3 class="font-extrabold text-violet-950 text-xl">Ficha Técnica de Producto 📝</h3>
+                <button onclick="closeProductModal()"><i data-lucide="x" class="w-6 h-6 text-violet-300"></i></button>
+            </div>
+            <form id="product-form" class="p-10 space-y-6">
+                <input type="hidden" id="edit-id">
+                <div class="grid grid-cols-1 gap-6">
+                    <label class="block">
+                        <span class="text-xs font-bold text-violet-400 uppercase ml-2">Nombre del Producto</span>
+                        <input type="text" id="f-name" required placeholder="Ej: Café Premium 250g" class="mt-1 w-full p-4 bg-slate-50 border-2 border-violet-50 rounded-2xl focus:border-violet-500 focus:ring-0 outline-none font-bold">
+                    </label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label>
+                            <span class="text-xs font-bold text-violet-400 uppercase ml-2">Código de Barras</span>
+                            <input type="text" id="f-code" required class="mt-1 w-full p-4 bg-slate-50 border-2 border-violet-50 rounded-2xl">
+                        </label>
+                        <label>
+                            <span class="text-xs font-bold text-violet-400 uppercase ml-2">Categoría</span>
+                            <input type="text" id="f-cat" placeholder="Abarrotes" class="mt-1 w-full p-4 bg-slate-50 border-2 border-violet-50 rounded-2xl">
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label>
+                            <span class="text-xs font-bold text-emerald-500 uppercase ml-2">Precio Compra ($)</span>
+                            <input type="number" step="0.01" id="f-p-buy" required class="mt-1 w-full p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl font-bold">
+                        </label>
+                        <label>
+                            <span class="text-xs font-bold text-violet-500 uppercase ml-2">Precio Venta ($)</span>
+                            <input type="number" step="0.01" id="f-p-sell" required class="mt-1 w-full p-4 bg-violet-50 border-2 border-violet-100 rounded-2xl font-bold">
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <label>
+                            <span class="text-xs font-bold text-slate-400 uppercase ml-2">Stock Actual</span>
+                            <input type="number" id="f-stock" required class="mt-1 w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                        </label>
+                        <label>
+                            <span class="text-xs font-bold text-amber-500 uppercase ml-2">Mínimo</span>
+                            <input type="number" id="f-stock-min" required class="mt-1 w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-2xl">
+                        </label>
+                        <label>
+                            <span class="text-xs font-bold text-blue-500 uppercase ml-2">Máximo</span>
+                            <input type="number" id="f-stock-max" required class="mt-1 w-full p-4 bg-blue-50 border-2 border-blue-100 rounded-2xl">
+                        </label>
+                    </div>
+                </div>
+                <div class="pt-6 flex gap-4">
+                    <button type="button" onclick="closeProductModal()" class="flex-1 py-4 text-violet-300 font-bold hover:text-violet-500 transition-colors">Descartar</button>
+                    <button type="submit" class="flex-[2] py-4 bg-violet-600 text-white rounded-[1.5rem] font-black shadow-xl shadow-violet-200">GUARDAR PRODUCTO ✨</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL GASTO -->
+    <div id="modal-expense" class="hidden fixed inset-0 z-[110] bg-rose-950/60 backdrop-blur-md flex items-center justify-center p-4">
+        <div class="bg-white rounded-[3rem] w-full max-w-md shadow-2xl border-8 border-rose-100 overflow-hidden">
+            <div class="p-8 border-b border-rose-50 flex justify-between items-center bg-rose-50/30">
+                <h3 class="font-extrabold text-rose-950 text-xl">Registrar Egreso 💸</h3>
+                <button onclick="closeExpenseModal()"><i data-lucide="x" class="w-6 h-6 text-rose-300"></i></button>
+            </div>
+            <form id="expense-form" class="p-10 space-y-6">
+                <label class="block">
+                    <span class="text-xs font-bold text-rose-400 uppercase ml-2">Concepto del Gasto</span>
+                    <input type="text" id="ex-desc" required placeholder="Luz, Gasolina, Renta..." class="mt-1 w-full p-4 bg-slate-50 border-2 border-rose-50 rounded-2xl font-bold">
+                </label>
+                <label class="block">
+                    <span class="text-xs font-bold text-rose-400 uppercase ml-2">Monto ($)</span>
+                    <input type="number" step="0.01" id="ex-amount" required placeholder="0.00" class="mt-1 w-full p-4 bg-rose-50 border-2 border-rose-100 rounded-2xl font-black text-rose-600 text-xl">
+                </label>
+                <div class="pt-4">
+                    <button type="submit" class="w-full py-5 bg-rose-500 text-white rounded-3xl font-black shadow-xl shadow-rose-100 hover:bg-rose-600 transition-all">REGISTRAR SALIDA</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FIREBASE & CORE LOGIC -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+        apiKey: "AIzaSyDbLBAVPS_bfFSj1UQhEmAXMBuDb_XeljE",
+        authDomain: "violetmarket-25f0e.firebaseapp.com",
+        projectId: "violetmarket-25f0e",
+        storageBucket: "violetmarket-25f0e.firebasestorage.app",
+        messagingSenderId: "392272540126",
+        appId: "1:392272540126:web:d72e4d8d43ca39235dad4f",
+        measurementId: "G-SBVDL7FDFJ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'violetmarket-prod';
+
+        window.appState = { mode: 'local', user: null, db, appId };
+
+        window.initCloudSession = async () => {
+            document.getElementById('setup-loader').classList.remove('hidden');
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (e) {
+                alert("Error de conexión nube.");
+                document.getElementById('setup-loader').classList.add('hidden');
+            }
+        };
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                window.appState.user = user;
+                window.appState.mode = 'cloud';
+                document.getElementById('db-setup').classList.add('hidden');
+                syncCloud();
+                initApp();
+            }
+        });
+
+        function syncCloud() {
+            if (!window.appState.user) return;
+            const ref = doc(db, 'artifacts', appId, 'users', window.appState.user.uid, 'store', 'v1');
+            onSnapshot(ref, (snap) => {
+                if (snap.exists()) {
+                    const data = snap.data();
+                    window.dbData = { ...window.dbData, ...data };
+                    refreshAllUI();
+                    document.getElementById('storage-status').innerText = "Nube: Activa ☁️";
+                }
+            }, (err) => console.error(err));
+        }
+
+        window.saveData = async () => {
+            if (window.appState.mode === 'cloud' && window.appState.user) {
+                const ref = doc(db, 'artifacts', appId, 'users', window.appState.user.uid, 'store', 'v1');
+                await setDoc(ref, {
+                    inventory: window.dbData.inventory,
+                    sales: window.dbData.sales,
+                    expenses: window.dbData.expenses,
+                    lastSync: new Date().toISOString()
+                });
+            } else {
+                localStorage.setItem('vmarket_inv', JSON.stringify(window.dbData.inventory));
+                localStorage.setItem('vmarket_sales', JSON.stringify(window.dbData.sales));
+                localStorage.setItem('vmarket_exp', JSON.stringify(window.dbData.expenses));
+                document.getElementById('storage-status').innerText = "Local: Guardado 💾";
+            }
+        };
+    </script>
+
+    <script>
+        // DATA OBJECT
+        window.dbData = {
+            inventory: JSON.parse(localStorage.getItem('vmarket_inv')) || [],
+            sales: JSON.parse(localStorage.getItem('vmarket_sales')) || [],
+            expenses: JSON.parse(localStorage.getItem('vmarket_exp')) || []
+        };
+
+        let cart = [];
+        let salesChart = null;
+        let scanner = null;
+
+        // UI HELPERS
+        function refreshAllUI() {
+            renderPOS();
+            renderInventory();
+            renderHistory();
+            renderAnalytics();
+            renderExpenses();
+            lucide.createIcons();
+        }
+
+        function showSection(id) {
+            document.querySelectorAll('main > div > div').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`section-${id}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('sidebar-active'));
+            document.querySelector(`[data-section="${id}"]`).classList.add('sidebar-active');
+            document.getElementById('section-title').innerText = id === 'pos' ? 'Caja 🏷️' : 
+                                                           id === 'inventory' ? 'Inventario 📦' :
+                                                           id === 'analytics' ? 'Analíticas 📈' :
+                                                           id === 'expenses' ? 'Gastos 💸' : 'Historial 📜';
+            if (id === 'analytics') setTimeout(initCharts, 100);
+            if (scanner) stopScanner();
+            lucide.createIcons();
+        }
+
+        function skipSetup() {
+            document.getElementById('db-setup').classList.add('hidden');
+            window.appState.mode = 'local';
+            initApp();
+        }
+
+        function initApp() {
+            document.getElementById('status-dot').classList.add(window.appState.mode === 'cloud' ? 'bg-green-500' : 'bg-blue-500');
+            document.getElementById('storage-status').innerText = window.appState.mode === 'cloud' ? 'Conectado Cloud ☁️' : 'Modo Local 💾';
+            
+            // Actualización de datos de perfil desde Google Account
+            if (window.appState.user) {
+                const u = window.appState.user;
+                document.getElementById('user-info').innerText = u.email;
+                document.getElementById('user-name').innerText = u.displayName || 'Usuario';
+                
+                if (u.photoURL) {
+                    document.getElementById('user-photo').src = u.photoURL;
+                    document.getElementById('user-photo').classList.remove('hidden');
+                    document.getElementById('user-initial').classList.add('hidden');
+                } else {
+                    document.getElementById('user-initial').innerText = (u.displayName || 'V')[0];
+                }
+            }
+
+            refreshAllUI();
+            setInterval(() => {
+                document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+            }, 1000);
+        }
+
+        // POS
+        function renderPOS() {
+            const grid = document.getElementById('pos-grid');
+            const search = document.getElementById('pos-search').value.toLowerCase();
+            const filtered = window.dbData.inventory.filter(p => 
+                (p.Nombre || "").toLowerCase().includes(search) || String(p.Codigo || "").includes(search)
+            );
+
+            grid.innerHTML = filtered.map(p => {
+                const isLow = p.Stock <= p.StockMin;
+                const isOut = p.Stock <= 0;
+                return `
+                <div onclick="addToCart('${p.Codigo}')" class="bg-white p-5 rounded-[2rem] border border-violet-100 cursor-pointer hover:border-violet-500 hover:shadow-xl transition-all active:scale-95 group relative overflow-hidden">
+                    ${isOut ? '<div class="absolute inset-0 bg-white/60 backdrop-blur-[2px] z-10 flex items-center justify-center font-black text-red-500 text-xs">AGOTADO 🚫</div>' : ''}
+                    <div class="h-14 w-14 bg-violet-50 rounded-2xl mb-4 flex items-center justify-center text-violet-300 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+                        <i data-lucide="tag" class="w-6 h-6"></i>
+                    </div>
+                    <h4 class="font-extrabold text-violet-950 text-sm truncate leading-tight">${p.Nombre}</h4>
+                    <div class="flex justify-between items-end mt-4">
+                        <div>
+                            <p class="text-[9px] text-slate-400 font-bold uppercase tracking-tighter">${p.Categoria || 'General'}</p>
+                            <p class="text-violet-600 font-black text-lg">$${parseFloat(p.PrecioVenta).toFixed(2)}</p>
+                        </div>
+                        <span class="text-[10px] ${isLow ? 'text-red-500 font-black animate-pulse' : 'text-slate-400 font-bold'}">
+                            ${isLow ? '⚠️' : ''} ${p.Stock} uds
+                        </span>
+                    </div>
+                </div>
+            `}).join('');
+            lucide.createIcons();
+        }
+
+        window.addToCart = (code) => {
+            const prod = window.dbData.inventory.find(p => String(p.Codigo) === String(code));
+            if (!prod || prod.Stock <= 0) return;
+            const inCart = cart.find(c => String(c.Codigo) === String(code));
+            if (inCart) { if (inCart.qty < prod.Stock) inCart.qty++; }
+            else { cart.push({ ...prod, qty: 1 }); }
+            renderCart();
+        };
+
+        function renderCart() {
+            const list = document.getElementById('cart-list');
+            list.innerHTML = cart.length ? cart.map((item, idx) => `
+                <div class="flex items-center gap-4 bg-slate-50/50 p-4 rounded-2xl border border-violet-50">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-black text-violet-950 truncate">${item.Nombre}</p>
+                        <p class="text-[10px] text-slate-400 font-bold">Qty: ${item.qty} · $${item.PrecioVenta}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-black text-violet-600">$${(item.PrecioVenta * item.qty).toFixed(2)}</p>
+                        <button onclick="cart.splice(${idx},1);renderCart()" class="text-red-300 hover:text-red-500 transition-colors"><i data-lucide="circle-minus" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            `).join('') : `<div class="text-center py-20 text-slate-300 text-xs italic">Aún no hay productos 🛍️</div>`;
+            
+            const total = cart.reduce((s, i) => s + (i.PrecioVenta * i.qty), 0);
+            document.getElementById('cart-total').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('cart-subtotal').innerText = `$${(total * 0.85).toFixed(2)}`; // Mock subtotal
+            lucide.createIcons();
+        }
+
+        window.clearCart = () => { cart = []; renderCart(); };
+
+        window.checkout = async () => {
+            if (!cart.length) return;
+            let totalProfit = 0;
+            cart.forEach(item => {
+                const p = window.dbData.inventory.find(inv => String(inv.Codigo) === String(item.Codigo));
+                if (p) {
+                    p.Stock -= item.qty;
+                    totalProfit += (p.PrecioVenta - p.PrecioCompra) * item.qty;
+                }
+            });
+
+            const sale = {
+                ID: Math.random().toString(36).substr(2, 6).toUpperCase(),
+                Fecha: new Date().toISOString(),
+                Total: cart.reduce((s, i) => s + (i.PrecioVenta * i.qty), 0),
+                Ganancia: totalProfit,
+                Items: cart.map(i => ({ cod: i.Codigo, nom: i.Nombre, qty: i.qty, p: i.PrecioVenta }))
+            };
+
+            window.dbData.sales.push(sale);
+            await window.saveData();
+            clearCart();
+            refreshAllUI();
+        };
+
+        // INVENTORY
+        window.renderInventory = () => {
+            const table = document.getElementById('inventory-table');
+            table.innerHTML = window.dbData.inventory.map(p => {
+                const profit = p.PrecioVenta - p.PrecioCompra;
+                const statusColor = p.Stock <= 0 ? 'text-red-600 bg-red-50 border-red-100' :
+                                   p.Stock <= p.StockMin ? 'text-amber-600 bg-amber-50 border-amber-100' :
+                                   'text-emerald-600 bg-emerald-50 border-emerald-100';
+                return `
+                <tr class="hover:bg-violet-50/30 transition-colors">
+                    <td class="p-5">
+                        <div class="flex items-center gap-3">
+                            <div class="p-2 bg-violet-50 rounded-xl text-violet-400"><i data-lucide="package" class="w-4 h-4"></i></div>
+                            <div>
+                                <p class="font-extrabold text-violet-950">${p.Nombre}</p>
+                                <p class="text-[10px] text-slate-400 font-mono">${p.Codigo} · ${p.Categoria || 'General'}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="p-5">
+                        <p class="text-xs font-bold text-slate-400 italic">C: $${p.PrecioCompra}</p>
+                        <p class="text-sm font-black text-violet-600">V: $${p.PrecioVenta}</p>
+                    </td>
+                    <td class="p-5">
+                        <span class="px-3 py-1.5 rounded-xl text-[10px] font-black border ${statusColor}">
+                            ${p.Stock} / ${p.StockMax} UDS ${p.Stock <= p.StockMin ? '⚠️' : '✅'}
+                        </span>
+                    </td>
+                    <td class="p-5">
+                        <p class="text-emerald-500 font-black">$${profit.toFixed(2)}</p>
+                        <p class="text-[9px] text-slate-400 font-bold">${((profit/p.PrecioVenta)*100).toFixed(0)}% margen</p>
+                    </td>
+                    <td class="p-5 text-right">
+                        <div class="flex justify-end gap-2">
+                            <button onclick="openProductModal('${p.Codigo}')" class="p-2.5 text-violet-300 hover:text-violet-600 hover:bg-violet-100 rounded-xl transition-all"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                            <button onclick="deleteProduct('${p.Codigo}')" class="p-2.5 text-violet-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </div>
+                    </td>
+                </tr>
+            `}).join('');
+            lucide.createIcons();
+        };
+
+        window.openProductModal = (code = null) => {
+            const f = document.getElementById('product-form');
+            f.reset(); document.getElementById('edit-id').value = '';
+            if (code) {
+                const p = window.dbData.inventory.find(i => String(i.Codigo) === String(code));
+                if (p) {
+                    document.getElementById('edit-id').value = p.Codigo;
+                    document.getElementById('f-name').value = p.Nombre;
+                    document.getElementById('f-code').value = p.Codigo;
+                    document.getElementById('f-cat').value = p.Categoria || '';
+                    document.getElementById('f-p-buy').value = p.PrecioCompra;
+                    document.getElementById('f-p-sell').value = p.PrecioVenta;
+                    document.getElementById('f-stock').value = p.Stock;
+                    document.getElementById('f-stock-min').value = p.StockMin;
+                    document.getElementById('f-stock-max').value = p.StockMax;
+                }
+            }
+            document.getElementById('modal-product').classList.remove('hidden');
+            lucide.createIcons();
+        };
+
+        window.closeProductModal = () => document.getElementById('modal-product').classList.add('hidden');
+
+        document.getElementById('product-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const editId = document.getElementById('edit-id').value;
+            const data = {
+                Nombre: document.getElementById('f-name').value,
+                Codigo: document.getElementById('f-code').value,
+                Categoria: document.getElementById('f-cat').value,
+                PrecioCompra: parseFloat(document.getElementById('f-p-buy').value),
+                PrecioVenta: parseFloat(document.getElementById('f-p-sell').value),
+                Stock: parseInt(document.getElementById('f-stock').value),
+                StockMin: parseInt(document.getElementById('f-stock-min').value),
+                StockMax: parseInt(document.getElementById('f-stock-max').value)
+            };
+
+            if (editId) {
+                const idx = window.dbData.inventory.findIndex(i => String(i.Codigo) === String(editId));
+                window.dbData.inventory[idx] = data;
+            } else {
+                window.dbData.inventory.push(data);
+            }
+            await window.saveData();
+            closeProductModal(); refreshAllUI();
+        };
+
+        window.deleteProduct = async (code) => {
+            if (confirm("¿Eliminar producto definitivamente?")) {
+                window.dbData.inventory = window.dbData.inventory.filter(i => String(i.Codigo) !== String(code));
+                await window.saveData();
+                refreshAllUI();
+            }
+        };
+
+        // EXPENSES
+        window.renderExpenses = () => {
+            const table = document.getElementById('expenses-table');
+            table.innerHTML = window.dbData.expenses.length ? [...window.dbData.expenses].reverse().map((ex, idx) => `
+                <tr class="hover:bg-rose-50/20 transition-colors">
+                    <td class="p-5 font-mono text-[10px] text-slate-400">${new Date(ex.Fecha).toLocaleString()}</td>
+                    <td class="p-5 font-bold text-slate-700">${ex.Desc}</td>
+                    <td class="p-5 text-right font-black text-rose-500">$${parseFloat(ex.Monto).toFixed(2)}</td>
+                    <td class="p-5 text-right">
+                        <button onclick="deleteExpense(${window.dbData.expenses.length - 1 - idx})" class="text-slate-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </td>
+                </tr>
+            `).join('') : `<tr><td colspan="4" class="p-20 text-center text-slate-300 italic">No hay gastos hoy 🌿</td></tr>`;
+            lucide.createIcons();
+        };
+
+        window.openExpenseModal = () => document.getElementById('modal-expense').classList.remove('hidden');
+        window.closeExpenseModal = () => document.getElementById('modal-expense').classList.add('hidden');
+
+        document.getElementById('expense-form').onsubmit = async (e) => {
+            e.preventDefault();
+            const ex = {
+                Desc: document.getElementById('ex-desc').value,
+                Monto: parseFloat(document.getElementById('ex-amount').value),
+                Fecha: new Date().toISOString()
+            };
+            window.dbData.expenses.push(ex);
+            await window.saveData();
+            closeExpenseModal(); refreshAllUI();
+        };
+
+        window.deleteExpense = async (idx) => {
+            if (confirm("¿Eliminar este registro de gasto?")) {
+                window.dbData.expenses.splice(idx, 1);
+                await window.saveData();
+                refreshAllUI();
+            }
+        };
+
+        // ANALYTICS
+        function renderAnalytics() {
+            const totalSales = window.dbData.sales.reduce((s, v) => s + v.Total, 0);
+            const totalProfit = window.dbData.sales.reduce((s, v) => s + v.Ganancia, 0);
+            const totalExpenses = window.dbData.expenses.reduce((s, e) => s + e.Monto, 0);
+            const stockVal = window.dbData.inventory.reduce((s, i) => s + (i.PrecioCompra * i.Stock), 0);
+
+            document.getElementById('stat-total-sales').innerText = `$${totalSales.toLocaleString()}`;
+            document.getElementById('stat-net-profit').innerText = `$${(totalProfit - totalExpenses).toLocaleString()}`;
+            document.getElementById('stat-stock-val').innerText = `$${stockVal.toLocaleString()}`;
+            document.getElementById('stat-total-expenses').innerText = `$${totalExpenses.toLocaleString()}`;
+
+            // Top Products
+            const prodStats = {};
+            window.dbData.sales.forEach(s => s.Items.forEach(i => {
+                prodStats[i.nom] = (prodStats[i.nom] || 0) + i.qty;
+            }));
+            const top5 = Object.entries(prodStats).sort((a,b) => b[1]-a[1]).slice(0,5);
+            
+            document.getElementById('top-products-list').innerHTML = top5.map(([name, qty]) => `
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-bold text-slate-600">${name}</span>
+                    <span class="px-3 py-1 bg-violet-50 text-violet-600 rounded-full text-[10px] font-black">${qty} vtas</span>
+                </div>
+            `).join('');
+        }
+
+        function initCharts() {
+            const ctx = document.getElementById('salesChart').getContext('2d');
+            if (salesChart) salesChart.destroy();
+
+            // Mock labels/data for last 7 days
+            const labels = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom'];
+            const dataArr = [0,0,0,0,0,0,0];
+            
+            window.dbData.sales.forEach(s => {
+                const day = new Date(s.Fecha).getDay();
+                const idx = day === 0 ? 6 : day - 1;
+                dataArr[idx] += s.Total;
+            });
+
+            salesChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Ventas Diarias ($)',
+                        data: dataArr,
+                        borderColor: '#7c3aed',
+                        backgroundColor: 'rgba(124, 58, 237, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 4,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#7c3aed'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#f1f5f9' }, border: { display: false } },
+                        x: { grid: { display: false }, border: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // HISTORY
+        window.renderHistory = () => {
+            const container = document.getElementById('sales-log');
+            container.innerHTML = window.dbData.sales.length ? [...window.dbData.sales].reverse().map(s => `
+                <div class="bg-white p-5 rounded-[2rem] border border-violet-100 flex justify-between items-center shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="p-4 bg-violet-50 rounded-2xl text-violet-400">
+                            <i data-lucide="receipt" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="font-black text-violet-950 text-base">Ticket ${s.ID} <span class="text-xs font-bold text-emerald-500 ml-2">+$${s.Ganancia.toFixed(2)} Ganancia</span></p>
+                            <p class="text-[10px] text-slate-400 font-mono">${new Date(s.Fecha).toLocaleString()}</p>
+                            <p class="text-[11px] text-slate-500 mt-2 italic font-medium">${s.Items.map(i => `${i.nom}(${i.qty})`).join(', ')}</p>
+                        </div>
+                    </div>
+                    <p class="text-2xl font-black text-violet-600">$${parseFloat(s.Total).toFixed(2)}</p>
+                </div>
+            `).join('') : `<div class="text-center py-20 text-slate-300 italic text-sm">No hay actividad registrada aún.</div>`;
+            lucide.createIcons();
+        };
+
+        // EXPORT
+        window.exportCurrentData = () => {
+            const wb = XLSX.utils.book_new();
+            const invWS = XLSX.utils.json_to_sheet(window.dbData.inventory);
+            const salesWS = XLSX.utils.json_to_sheet(window.dbData.sales);
+            const expWS = XLSX.utils.json_to_sheet(window.dbData.expenses);
+            XLSX.utils.book_append_sheet(wb, invWS, "Inventario");
+            XLSX.utils.book_append_sheet(wb, salesWS, "Ventas");
+            XLSX.utils.book_append_sheet(wb, expWS, "Gastos");
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: "application/octet-stream" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `VioletMarket_Cierre_${new Date().toISOString().split('T')[0]}.xlsx`;
+            a.click();
+        };
+
+        // SCANNER
+        function startScanner() {
+            document.getElementById('scanner-view').classList.remove('hidden');
+            scanner = new Html5QrcodeScanner("reader", { fps: 15, qrbox: 280 });
+            scanner.render((decoded) => {
+                addToCart(decoded);
+                const r = document.getElementById('reader');
+                r.style.borderColor = "#10b981";
+                setTimeout(() => r.style.borderColor = "#7c3aed", 400);
+            });
+        }
+        function stopScanner() {
+            if (scanner) { scanner.clear(); scanner = null; }
+            document.getElementById('scanner-view').classList.add('hidden');
+        }
+
+        // Init icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
